@@ -26,4 +26,14 @@ A Tampermonkey userscript for Catan on [Board Game Arena](https://boardgamearena
 
 If you installed an older version by copying and pasting, install from the link above once; it replaces the old copy and keeps itself up to date from then on.
 
+## Instant updates (optional)
+
+The regular script is updated by Tampermonkey's normal update check (once a day by default). To get every change as soon as it's published, use the **[live version](https://raw.githubusercontent.com/Vanarak4m4/catan-tracker/main/catan-tracker-live.user.js)** instead. It's a tiny script that loads the newest tracker code from this repository:
+
+1. Remove or turn off the regular tracker in Tampermonkey (don't run both).
+2. Install the live version from the link above.
+3. Tampermonkey → **Settings** → set **Config mode** to **Advanced** → under **Externals**, set **Update Interval** to **Always**.
+
+Every reload of a BGA game then runs the latest code (GitHub can take a few minutes to serve a new version).
+
 Works with the BGA Catan log in English. It only uses what the game log and your own screen already show.
