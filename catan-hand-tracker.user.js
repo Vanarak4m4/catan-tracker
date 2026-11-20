@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Catan hand tracker (Board Game Arena)
 // @namespace    chris.catan.tracker
-// @version      3.1
+// @version      3.2
 // @description  Shows what resource cards each opponent holds (and, on a computer, the odds of each dice total on the next card), rebuilt from the public game log. Sits in BGA's top bar. Picks a phone layout on narrow screens: bigger cards, no dice odds.
 // @match        https://boardgamearena.com/tableview*
 // @match        https://*.boardgamearena.com/tableview*
@@ -16,7 +16,7 @@
 // ==/UserScript==
 
 // Catan (Board Game Arena) live hand tracker.
-// Rebuilds every player's hand from the public game log, re-checks every 1.5 s,
+// Rebuilds every player's hand from the game log (the full log from BGA's server plus the page), re-checks every 1.5 s,
 // and shows an overlay (wide layout on a computer, big-card layout on a phone). Handles hidden robber steals by tracking all possible hands.
 (() => {
   if (window.__catTracker) { clearInterval(window.__catTracker.timer); window.__catTracker.box && window.__catTracker.box.remove(); }
@@ -124,15 +124,71 @@
   function mergeWithSaved(dom) {
     let saved = [];
     try { saved = JSON.parse(localStorage.getItem(LKEY) || '[]'); } catch (e) {}
+    saved = saved.filter(r => r.pmv); // lines from before the first move are BGA tips, not game moves
     const m0 = dom.reduce((a, r) => (r.mv && (!a || r.mv < a) ? r.mv : a), 0); // first move the page still shows
+    // Right after a reload BGA hasn't drawn the log yet (no moves on the page). Use what was saved and
+    // don't overwrite it: saving here used to wipe every older move the tracker had kept.
+    if (!m0) return saved.length ? saved : dom;
+    dom = dom.filter(r => r.pmv);
     let merged = dom;
-    if (m0 && saved.length) {
+    if (saved.length) {
       const older = saved.filter(r => r.pmv < m0);
       const savedM0 = saved.filter(r => r.pmv === m0), domM0 = dom.filter(r => r.pmv === m0);
       merged = older.concat(savedM0.length > domM0.length ? savedM0.concat(dom.filter(r => r.pmv !== m0)) : dom);
     }
     try { localStorage.setItem(LKEY, JSON.stringify(merged)); } catch (e) {}
     return merged;
+  }
+
+  // BGA keeps the whole game log on its server (the same lines the log panel shows, from move 1).
+  // Load it once per page so the tracker starts complete, even after a reload, on a phone, or when
+  // the game was opened partway through. The page's own log is still used for every new move.
+  const hist = { state: '' }; // '' → 'loading' → 'done' | 'failed'
+  function renderLog(log, args) {
+    const resTxt = s => String(s).split(',').filter(Boolean).map(x => { const [r, c] = x.split(':'); return (c ? c + ' ' : '') + '[' + r + ']'; }).join(' ');
+    return String(log || '').replace(/\$\{(\w+)\}/g, (_, k) => {
+      const v = args ? args[k] : '';
+      if (v == null) return '';
+      if (/resources_names/.test(k)) return resTxt(v);
+      if (typeof v === 'object') return v.log ? renderLog(v.log, v.args) : '';
+      return String(v).replace(/<[^>]+>/g, '');
+    }).replace(/\s+/g, ' ').trim();
+  }
+  async function loadHistory(win) {
+    if (hist.state) return;
+    hist.state = 'loading';
+    try {
+      const ui = win.gameui, game = ui.game_name || 'catan';
+      const server = (win.location.pathname.match(/^\/(\d+)\//) || [])[1];
+      const tid = ui.table_id || new URLSearchParams(location.search).get('table');
+      if (!server || !tid) throw new Error('no table');
+      const tok = (win.bgaConfig && win.bgaConfig.requestToken) || (window.bgaConfig && window.bgaConfig.requestToken) || '';
+      const url = '/' + server + '/' + game + '/' + game + '/notificationHistory.html?table=' + tid + '&from=1&privateinc=1&history=1&noerrortracking=true';
+      const res = await win.fetch(url, { credentials: 'include', headers: { 'X-Request-Token': tok, 'X-Requested-With': 'XMLHttpRequest' } });
+      const j = await res.json();
+      const packets = j && j.data && j.data.data;
+      if (!Array.isArray(packets) || !packets.length) throw new Error('empty');
+      packets.sort((a, b) => +a.packet_id - +b.packet_id);
+      const recs = [];
+      for (const p of packets) {
+        const priv = !/^\/table\//.test(p.channel || ''), mv = +p.move_id || 0;
+        for (const n of p.data || []) {
+          const t = renderLog(n.log, n.args);
+          if (!t || !mv) continue;
+          const faces = /dice deck/.test(t) && n.args ? [+n.args.dice1 || 0, +n.args.dice2 || 0] : null;
+          // Private lines ("You lose [brick]") carry no move number on the page; match that.
+          recs.push({ mv: priv ? 0 : mv, pmv: mv, t, faces });
+        }
+      }
+      let saved = [];
+      try { saved = JSON.parse(localStorage.getItem(LKEY) || '[]').filter(r => r.pmv); } catch (e) {}
+      const h0 = recs[0].pmv, hMax = recs[recs.length - 1].pmv;
+      // Keep anything saved from before what the server sent (if it ever sends only part) or after it.
+      const merged = saved.filter(r => r.pmv < h0).concat(recs, saved.filter(r => r.pmv > hMax));
+      localStorage.setItem(LKEY, JSON.stringify(merged));
+      hist.state = 'done';
+    } catch (e) { hist.state = 'failed'; }
+    lastSig = ''; // re-read with the full log
   }
 
   function compute(win) {
@@ -557,6 +613,7 @@
     try {
       const win = gameWin();
       if (!win || !win.gameui || !win.gameui.gamedatas) { box.style.display = 'none'; lastSig = ''; return; } // not a Catan game (yet)
+      if (!hist.state) loadHistory(win);
       setMode(isPhone() ? 'phone' : 'wide');
       box.style.display = 'flex';
       place(win);

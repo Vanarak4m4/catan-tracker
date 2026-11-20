@@ -7,6 +7,7 @@ A Tampermonkey userscript for Catan on [Board Game Arena](https://boardgamearena
 ## What it does
 
 - Rebuilds every opponent's hand from the public log: production, trades, builds, discards, Monopoly, Pirate Islands attacks and undos.
+- Loads the whole game log from BGA when the page opens, so it's complete after a reload, on a phone, or when you join a game partway through.
 - Steals you're part of are filled in exactly. Hidden steals between other players show as a yellow range (e.g. `1–2`) until later moves settle them.
 - **Computer:** one line in the top bar, plus the dice-deck odds for the next roll (how far each total is above or below normal dice). Click the tracker to show or hide the odds.
 - **Phone:** one big row per opponent, no dice odds. Tap the tracker to fold it away.
