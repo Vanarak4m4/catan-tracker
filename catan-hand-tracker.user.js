@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Catan hand tracker (Board Game Arena)
 // @namespace    chris.catan.tracker
-// @version      3.2
+// @version      3.3
 // @description  Shows what resource cards each opponent holds (and, on a computer, the odds of each dice total on the next card), rebuilt from the public game log. Sits in BGA's top bar. Picks a phone layout on narrow screens: bigger cards, no dice odds.
 // @match        https://boardgamearena.com/tableview*
 // @match        https://*.boardgamearena.com/tableview*
@@ -20,6 +20,8 @@
 // and shows an overlay (wide layout on a computer, big-card layout on a phone). Handles hidden robber steals by tracking all possible hands.
 (() => {
   if (window.__catTracker) { clearInterval(window.__catTracker.timer); window.__catTracker.box && window.__catTracker.box.remove(); }
+  // Shown in the tracker. Keep in step with @version above: the live loader can't read this file's header.
+  const VERSION = '3.3';
   const RES = ['lumber', 'brick', 'wool', 'grain', 'ore'];
   const ICON = { lumber: '🌲', brick: '🧱', wool: '🐑', grain: '🌾', ore: '⛰️' };
   const LABEL = Object.fromEntries(Object.entries(ICON).map(([k, v]) => [k, '<span title="' + k + '" style="font-size:20px;line-height:1;vertical-align:-2px">' + v + '</span>']));
@@ -475,7 +477,7 @@
   // Wide layout (computer): name, card count and resources on one line; big numbers.
   function renderWide(r) {
     const num = v => '<span style="font-size:20px;font-weight:700;line-height:1;vertical-align:-1px">' + v + '</span>';
-    let h = '<div style="font-weight:600;font-size:12px;white-space:nowrap"><span style="opacity:.75">🃏 move ' + r.lastMove + '</span>' +
+    let h = '<div style="font-weight:600;font-size:12px;white-space:nowrap"><span style="opacity:.5;font-size:9px;font-weight:400;margin-right:5px">v' + VERSION + '</span><span style="opacity:.75">🃏 move ' + r.lastMove + '</span>' +
       ' <span style="margin-left:6px;padding:0 5px;border-radius:4px;font-size:13px;' +
       (showDice ? 'background:rgba(255,255,255,.18)' : 'opacity:.45;border:1px solid rgba(255,255,255,.35)') + '">🎲</span></div>';
     r.names.forEach((n, i) => {
