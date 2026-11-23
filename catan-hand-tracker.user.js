@@ -254,6 +254,7 @@
       let m;
       if ((m = t.match(new RegExp('^' + P + ' plays Monopoly')))) { mono = { p: idx[m[1]], mv: r.mv || r.pmv }; continue; }
       if (mono && (r.pmv || 0) > mono.mv + 3) mono = null;
+      if (/\bmove[sd]?\s+(?:the\s+)?\[?(?:robber|pirate)/i.test(t)) continue;
       if (/raises a trade offer|changes their trade offer|cancels their trade offer|rejects this offer|cancels the trade|trade cancel|picks dice cards|Robber is activated|moves the robber|moves the pirate|must choose|gains \d+ VP|special card|is looking for|No robber move|pirate ship moves|built a Warship|is offering|offers to trade|wants to trade|doesn.t have any|can.t steal|has nothing to steal|nothing to steal/.test(t) || rePlays.test(t)) continue;
       if ((m = t.match(reGets))) {
         if (/^nothing/.test(m[2])) continue;
